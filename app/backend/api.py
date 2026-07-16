@@ -49,8 +49,9 @@ def _retrieve(question):
     with trace_ops.span("retrieval", input={"query": question}) as s:
         results = retriever.retrieve(question)
         chunks = results["documents"][0]
+        metadatas = results["metadatas"][0]
         s.update(output={"n_chunks": len(chunks)})
-    return chunks
+    return chunks, metadatas
 
 
 def _generate(llm_obj, method, chunks, *, span_name, **method_kwargs):
@@ -81,10 +82,11 @@ def ask_question(question: str, *, user_id="anonymous", session_id=None):
             question = getattr(guard, "cleaned_text", question)
 
         # Retrieve → Generate
-        chunks = _retrieve(question)
+        chunks, metadatas = _retrieve(question)
         answer, costs = _generate(
             generator, generator.generate_answer, chunks,
             span_name="answer_generation", query=question,
+            metadatas=metadatas,
         )
 
         # Output guard
@@ -114,10 +116,12 @@ def extract_financial_metrics(question: str, *, user_id="anonymous", session_id=
     costs = {}
 
     try:
-        chunks = _retrieve(question)
+        chunks, metadatas = _retrieve(question)
         metrics, costs = _generate(
             extractor, extractor.extract_metrics, chunks,
             span_name="metrics_extraction",
+            query=question,
+            metadatas=metadatas,
         )
 
         if isinstance(metrics, dict):
@@ -144,10 +148,12 @@ def generate_financial_summary(question: str, *, user_id="anonymous", session_id
     costs = {}
 
     try:
-        chunks = _retrieve(question)
+        chunks, metadatas = _retrieve(question)
         summary, costs = _generate(
             extractor, extractor.generate_summary, chunks,
             span_name="summary_generation",
+            query=question,
+            metadatas=metadatas,
         )
         trace_ops.score_trace("error_occurred", 0.0)
         return summary

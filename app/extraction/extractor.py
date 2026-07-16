@@ -3,6 +3,11 @@ extractor.py  (with token usage capture)
 -----------------------------------------
 Drop-in replacement.  _last_usage is populated after every LLM call.
 Return types are unchanged — Streamlit untouched.
+
+FIX: extract_metrics() and generate_summary() now accept an optional
+     `query` param so the LLM knows which company/period to focus on,
+     and an optional `metadatas` param to label chunks by source.
+     Both are backward-compatible — existing callers still work.
 """
 
 import json
@@ -30,6 +35,23 @@ class FinancialExtractor:
         self._last_usage: dict = {"input_tokens": 0, "output_tokens": 0}
 
     # ── Helpers ─────────────────────────────────────────────────
+
+    @staticmethod
+    def _build_context(
+        chunks: list[str], metadatas: list[dict] | None = None
+    ) -> str:
+        """Join chunks, optionally prefixing each with its metadata
+        tag so the LLM can distinguish companies and document types."""
+        if metadatas:
+            parts = []
+            for chunk, meta in zip(chunks, metadatas):
+                company = meta.get("company", "unknown").title()
+                doc_type = meta.get("document_type", "document")
+                source = meta.get("source_file", "")
+                label = f"[Company: {company} | Type: {doc_type} | Source: {source}]"
+                parts.append(f"{label}\n{chunk}")
+            return "\n\n---\n\n".join(parts)
+        return "\n\n---\n\n".join(chunks)
 
     @staticmethod
     def _parse_json(raw: str):
@@ -63,18 +85,45 @@ class FinancialExtractor:
 
     # ── Metrics extraction ──────────────────────────────────────
 
-    def extract_metrics(self, retrieved_chunks: list[str]):
-        context = "\n\n".join(retrieved_chunks)
-        prompt = f"""
-You are a Financial Analyst.
+    def extract_metrics(
+        self,
+        retrieved_chunks: list[str],
+        query: str = "",
+        metadatas: list[dict] | None = None,
+    ):
+        context = self._build_context(retrieved_chunks, metadatas)
+
+        # If we know what the user asked, tell the LLM explicitly
+        query_instruction = ""
+        if query:
+            query_instruction = f"""
+The user's original question was: "{query}"
+Extract metrics ONLY for the company and reporting period relevant to
+this question. Ignore data from other companies or other periods.
+"""
+
+        prompt = f"""You are a Financial Analyst.
 
 Extract the following financial metrics from the context below.
-
+{query_instruction}
 Rules:
-- Return ONLY valid JSON.  No markdown fences, no commentary.
-- If a metric is missing, return "Not Available" — never estimate.
-- Use the most recent period shown unless stated otherwise.
-- Copy numeric values exactly as written, including units.
+
+1. Return ONLY valid JSON. No markdown fences, no commentary.
+
+2. If a metric is not explicitly stated in the context, return
+   "Not Available" — never estimate, calculate, or infer.
+
+3. CRITICAL — distinguish REPORTED RESULTS from FORWARD GUIDANCE:
+   - Reported results: "revenue was $X", "net income increased to $X"
+   - Forward guidance: "we expect revenue to be $X-$Y", "outlook"
+   For each metric, extract the REPORTED (actual) value, not guidance.
+   If only guidance is available for a metric, prefix the value with
+   "Guidance: " (e.g. "Guidance: $58-61 billion").
+
+4. Each chunk is tagged with [Company: ...]. Only use chunks matching
+   the company asked about. Ignore other companies' data entirely.
+
+5. Copy numeric values exactly as written, including units.
 
 Required Metrics:
 - Revenue
@@ -97,21 +146,46 @@ JSON:
 
     # ── Summary generation ──────────────────────────────────────
 
-    def generate_summary(self, retrieved_chunks: list[str]):
-        context = "\n\n".join(retrieved_chunks)
-        prompt = f"""
-You are a Financial Analyst.
+    def generate_summary(
+        self,
+        retrieved_chunks: list[str],
+        query: str = "",
+        metadatas: list[dict] | None = None,
+    ):
+        context = self._build_context(retrieved_chunks, metadatas)
+
+        query_instruction = ""
+        if query:
+            query_instruction = f"""
+The user's original question was: "{query}"
+Focus the summary on the company and period relevant to this question.
+"""
+
+        prompt = f"""You are a Financial Analyst.
 
 Produce a concise executive summary from the context below.
+{query_instruction}
+Rules:
+
+1. Each chunk is tagged with [Company: ...]. Only summarise the
+   company the user asked about. If no specific company is indicated,
+   summarise whichever company appears most in the context.
+
+2. Clearly separate REPORTED RESULTS from FORWARD GUIDANCE.
+   - When stating actuals: "Q1 2026 revenue was $56.3 billion"
+   - When stating guidance: "The company expects Q2 revenue of $58-61B"
+   Never present a guidance range as if it were an actual result.
+
+3. Only use figures explicitly present in the context — never
+   fabricate, round, or approximate.
+
+4. Limit the summary to about 150 words.
 
 Include:
-- Company's financial performance
-- Important financial metrics
+- Key reported financial metrics (revenue, income, margins, EPS)
+- Notable year-over-year or quarter-over-quarter changes
 - Business highlights
-- Future guidance (if available)
-
-Only use figures explicitly present in the context.
-Limit the summary to about 150 words.
+- Forward guidance (clearly labelled as such)
 
 Context:
 {context}

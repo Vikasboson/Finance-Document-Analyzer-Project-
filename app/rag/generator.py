@@ -30,36 +30,70 @@ class AnswerGenerator:
 
     # ── Prompt ──────────────────────────────────────────────────
 
-    def build_prompt(self, query: str, retrieved_chunks: list[str]) -> str:
-        context = "\n\n".join(retrieved_chunks)
-        return f"""
-You are a Financial Document Analysis Assistant.
+    def build_prompt(
+        self,
+        query: str,
+        retrieved_chunks: list[str],
+        metadatas: list[dict] | None = None,
+    ) -> str:
+        """Build the LLM prompt.
+
+        When *metadatas* is provided (one dict per chunk), each chunk
+        is prefixed with its company and document-type tag so the model
+        can tell sources apart even when multiple companies appear.
+        """
+        if metadatas:
+            labelled = []
+            for chunk, meta in zip(retrieved_chunks, metadatas):
+                company = meta.get("company", "unknown").title()
+                doc_type = meta.get("document_type", "document")
+                source = meta.get("source_file", "")
+                label = f"[Company: {company} | Type: {doc_type} | Source: {source}]"
+                labelled.append(f"{label}\n{chunk}")
+            context = "\n\n---\n\n".join(labelled)
+        else:
+            context = "\n\n---\n\n".join(retrieved_chunks)
+
+        return f"""You are a Financial Document Analysis Assistant.
 
 Instructions:
 
-1. Read every retrieved chunk carefully.
+1. Read every retrieved chunk carefully. Each chunk is tagged with its
+   company name and document type — ONLY use chunks that match the
+   company asked about in the question. Ignore chunks from other
+   companies entirely.
 
-2. Multiple chunks may belong to different companies — only use chunks
-   whose company matches the one asked about in the question.  If the
-   context does not clearly relate to the company or period asked
-   about, say so instead of guessing.
+2. CRITICAL — distinguish between REPORTED RESULTS and FORWARD GUIDANCE:
+   - Reported results use past-tense language: "revenue was", "net
+     income increased to", "we recorded", "totaled".
+   - Forward guidance uses future-tense or conditional language:
+     "we expect", "is expected to be in the range of", "we anticipate",
+     "outlook", "guidance", "forecast".
+   NEVER substitute a guidance figure for a reported result or vice
+   versa. If the question asks for an actual reported number, only
+   provide the reported figure. If the question asks about guidance
+   or outlook, only provide the forward-looking figure.
 
-3. Financial statements often show multiple periods side by side
-   (e.g. current year vs. prior year).  Identify exactly which period
-   the question is asking about and only use that column's value.
-   Do not average, combine, or mix values across periods.
+3. Financial documents often show multiple periods side by side
+   (e.g. Q1 2026 vs Q1 2025, or current year vs prior year).
+   Identify exactly which period the question asks about and only
+   report that period's value. Do not average, combine, or mix
+   values across different periods.
 
-4. Copy numerical values exactly as written, including sign, currency
-   symbol, and units (e.g. millions).
+4. Copy numerical values exactly as written in the source text,
+   including sign, currency symbol, and units (billions, millions,
+   per share, etc.). Do not round or convert.
 
-5. If the answer exists but is phrased differently, infer the
-   equivalent meaning.
+5. If the answer is present but phrased differently (e.g. "operating
+   margin" expressed as a percentage of revenue), you may derive the
+   equivalent — but show your working.
 
-6. If the exact figure is not present anywhere in the context, respond
-   with "Not available in the provided context" — never fabricate.
+6. If the exact figure is not present anywhere in the context, respond:
+   "Not available in the provided context." Never fabricate a number.
 
-7. Provide a concise, direct answer and briefly cite which line item
-   and period it came from.
+7. Structure your answer as:
+   - A direct, concise answer to the question
+   - A brief citation: which metric, which period, which document
 
 Context:
 {context}
@@ -72,8 +106,13 @@ Answer:
 
     # ── Generate ────────────────────────────────────────────────
 
-    def generate_answer(self, query: str, retrieved_chunks: list[str]) -> str:
-        prompt = self.build_prompt(query, retrieved_chunks)
+    def generate_answer(
+        self,
+        query: str,
+        retrieved_chunks: list[str],
+        metadatas: list[dict] | None = None,
+    ) -> str:
+        prompt = self.build_prompt(query, retrieved_chunks, metadatas)
         response = self.llm.invoke(prompt)
         self._last_usage = self._extract_usage(response)
         return response.content
