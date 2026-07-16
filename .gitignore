@@ -1,0 +1,22 @@
+# Secrets (NEVER commit these)
+.env
+.env.example
+.streamlit/secrets.toml
+
+# ChromaDB (rebuilt on startup)
+chroma_datab/
+chroma_db/
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
