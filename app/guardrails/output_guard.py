@@ -3,19 +3,6 @@ output_guard.py
 ----------------
 Validates model output before it's returned from api.py's public functions.
 
-Rebuilt after reading generator.py / extractor.py:
-- AnswerGenerator.generate_answer()      -> returns a str
-- FinancialExtractor.generate_summary()  -> returns a str
-- FinancialExtractor.extract_metrics()   -> returns a DICT (parsed JSON)
-  My first draft only handled strings; extract_metrics needed its own
-  path (check_metrics) since scrubbing/grounding a dict is different
-  from scrubbing a string.
-
-Also: generator.py's own prompt already instructs the LLM to say
-"Not available in the provided context" instead of fabricating a
-number. The grounding check below treats that phrase as a valid,
-correct answer rather than flagging it — it's the guardrail working
-as designed, not a failure to catch.
 """
 
 import re

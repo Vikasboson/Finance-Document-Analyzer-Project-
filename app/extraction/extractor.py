@@ -1,15 +1,3 @@
-"""
-extractor.py  (with token usage capture)
------------------------------------------
-Drop-in replacement.  _last_usage is populated after every LLM call.
-Return types are unchanged — Streamlit untouched.
-
-FIX: extract_metrics() and generate_summary() now accept an optional
-     `query` param so the LLM knows which company/period to focus on,
-     and an optional `metadatas` param to label chunks by source.
-     Both are backward-compatible — existing callers still work.
-"""
-
 import json
 import os
 import re

@@ -5,8 +5,6 @@ Per-token pricing for AWS Bedrock models.
 
 Langfuse uses these to compute the cost columns on its dashboard.
 Update the rates when AWS changes Bedrock pricing.
-
-Source: https://aws.amazon.com/bedrock/pricing/
 """
 
 # model_id → {"input": $/token, "output": $/token}

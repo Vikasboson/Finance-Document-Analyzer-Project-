@@ -4,14 +4,6 @@ input_guard.py
 Validates the `question` string before it reaches HybridRetriever /
 AnswerGenerator / FinancialExtractor (i.e. before api.ask_question,
 api.extract_financial_metrics, api.generate_financial_summary run).
-
-Rebuilt after reading retriever.py / hybrid_retriever.py:
-Both already maintain a live `known_companies` set built from whatever
-is actually sitting in ChromaDB (retriever.dense_retriever.known_companies).
-Rather than guessing a static topic keyword list, this guard accepts
-that same set and scopes against it dynamically — so it automatically
-stays in sync every time a new document is uploaded, with zero
-maintenance.
 """
 
 import re

@@ -3,14 +3,6 @@ pii_scrubber.py
 ----------------
 Regex-based PII detection & redaction. No external dependencies.
 
-IMPORTANT (rebuilt after reading ingestion.py / extractor.py):
-This app's whole job is to surface large financial numbers
-(revenue, EPS, market cap, share counts) verbatim from context. An
-earlier version of this scrubber matched any bare 9-17 digit number as
-an "account number" — that would have silently corrupted real figures
-like "150000000000" coming straight out of a 10-K. Fixed here: the
-account-number pattern now only fires when a nearby keyword
-(account/acct/routing) makes intent unambiguous.
 """
 
 import re

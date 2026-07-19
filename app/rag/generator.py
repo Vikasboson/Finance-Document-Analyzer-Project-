@@ -1,11 +1,5 @@
-"""
-generator.py  (with token usage capture)
------------------------------------------
-Drop-in replacement.  After each invoke(), self._last_usage stores
-{"input_tokens": N, "output_tokens": N} for the observability layer.
 
-generate_answer() still returns a plain string — Streamlit untouched.
-"""
+
 
 import os
 from dotenv import load_dotenv
