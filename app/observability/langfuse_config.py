@@ -4,7 +4,7 @@ langfuse_config.py
 Reads Langfuse credentials from .env.example (same file as
 AWS credentials) and creates the singleton client.
 
-If the keys are absent → silent no-op, app runs normally.
+
 """
 
 import os
