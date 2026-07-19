@@ -123,17 +123,37 @@ Rules:
 4. Each chunk is tagged with [Company: ...]. Only use chunks matching
    the company asked about. Ignore other companies' data entirely.
 
-5. Copy numeric values exactly as written, including units.
+5. CRITICAL — distinguish TOTAL COMPANY figures from SEGMENT-LEVEL
+   breakdowns. Earnings documents report overall company results first
+   (e.g. "This quarter, revenue was $X billion") then segment results
+   (e.g. "Revenue from [Segment] was $Y billion" or "Now to [Segment].
+   Revenue was $Y billion"). Always extract TOTAL COMPANY figures, NOT
+   segment figures, unless the user specifically asks about a segment.
 
-Required Metrics:
-- Revenue
-- Net Income
-- Operating Income
-- EPS
-- Operating Margin
-- Gross Margin
-- Free Cash Flow
-- Capital Expenditure
+6. MANDATORY — every numeric value MUST include its unit:
+   - Dollar amounts: "$77.7 billion" or "$181,519 million" (keep the
+     original scale from the document — do NOT strip "billion"/"million")
+   - Percentages: "49%" or "69%"
+   - Per-share: "$4.13 per share"
+   NEVER return a bare number like "181519" — always include the unit.
+
+7. MANDATORY — always include "Company" and "ReportingPeriod" keys.
+
+Return EXACTLY this JSON structure (no extra keys, no missing keys):
+
+Example of correct output:
+{{
+  "Company": "Microsoft",
+  "ReportingPeriod": "Q1 FY26",
+  "Revenue": "$77.7 billion",
+  "NetIncome": "$34.2 billion",
+  "OperatingIncome": "$38.1 billion",
+  "EPS": "$4.13 per share",
+  "OperatingMargin": "49%",
+  "GrossMargin": "69%",
+  "FreeCashFlow": "$25.7 billion",
+  "CapitalExpenditure": "$34.9 billion"
+}}
 
 Context:
 {context}
@@ -143,55 +163,3 @@ JSON:
         response = self.llm.invoke(prompt)
         self._last_usage = self._extract_usage(response)
         return self._parse_json(response.content)
-
-    # ── Summary generation ──────────────────────────────────────
-
-    def generate_summary(
-        self,
-        retrieved_chunks: list[str],
-        query: str = "",
-        metadatas: list[dict] | None = None,
-    ):
-        context = self._build_context(retrieved_chunks, metadatas)
-
-        query_instruction = ""
-        if query:
-            query_instruction = f"""
-The user's original question was: "{query}"
-Focus the summary on the company and period relevant to this question.
-"""
-
-        prompt = f"""You are a Financial Analyst.
-
-Produce a concise executive summary from the context below.
-{query_instruction}
-Rules:
-
-1. Each chunk is tagged with [Company: ...]. Only summarise the
-   company the user asked about. If no specific company is indicated,
-   summarise whichever company appears most in the context.
-
-2. Clearly separate REPORTED RESULTS from FORWARD GUIDANCE.
-   - When stating actuals: "Q1 2026 revenue was $56.3 billion"
-   - When stating guidance: "The company expects Q2 revenue of $58-61B"
-   Never present a guidance range as if it were an actual result.
-
-3. Only use figures explicitly present in the context — never
-   fabricate, round, or approximate.
-
-4. Limit the summary to about 150 words.
-
-Include:
-- Key reported financial metrics (revenue, income, margins, EPS)
-- Notable year-over-year or quarter-over-quarter changes
-- Business highlights
-- Forward guidance (clearly labelled as such)
-
-Context:
-{context}
-
-Summary:
-"""
-        response = self.llm.invoke(prompt)
-        self._last_usage = self._extract_usage(response)
-        return response.content

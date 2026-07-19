@@ -88,10 +88,19 @@ Instructions:
    margin" expressed as a percentage of revenue), you may derive the
    equivalent — but show your working.
 
-6. If the exact figure is not present anywhere in the context, respond:
+6. CRITICAL — distinguish TOTAL COMPANY figures from SEGMENT-LEVEL
+   breakdowns. Earnings documents typically report overall company
+   results first (e.g. "This quarter, revenue was $X billion") followed
+   by segment results (e.g. "Revenue from [Segment Name] was $Y
+   billion", "Now to [Segment Name]. Revenue was $Y billion").
+   When the question asks about overall, total, or company-wide
+   revenue (or any metric) WITHOUT naming a specific segment, report
+   the TOTAL COMPANY figure only — never a segment figure.
+
+7. If the exact figure is not present anywhere in the context, respond:
    "Not available in the provided context." Never fabricate a number.
 
-7. Structure your answer as:
+8. Structure your answer as:
    - A direct, concise answer to the question
    - A brief citation: which metric, which period, which document
 

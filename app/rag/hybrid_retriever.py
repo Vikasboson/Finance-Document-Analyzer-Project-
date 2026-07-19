@@ -77,7 +77,7 @@ class HybridRetriever:
         #     return max(matches, key=len)
         return None
 
-    def retrieve(self, query: str, top_k: int = 3):
+    def retrieve(self, query: str, top_k: int = 5):
         # Detect company once, use for both searches
         company = self._detect_company(query)
 
@@ -125,5 +125,5 @@ class HybridRetriever:
 if __name__ == "__main__":
     retriever = HybridRetriever()
     query = "For META what is the expected range of total revenue in second quarter 2026 in billions?"
-    results = retriever.retrieve(query=query, top_k=3)
+    results = retriever.retrieve(query=query, top_k=5)
     retriever.print_results(results)

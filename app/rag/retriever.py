@@ -39,7 +39,7 @@ class DocumentRetriever:
         """Reload known companies after new documents are ingested."""
         self._load_known_companies()
 
-    def retrieve(self, query: str, top_k: int = 3):
+    def retrieve(self, query: str, top_k: int = 5):
         query_embedding = self.embedding_model.encode(
             query, convert_to_numpy=True
         ).tolist()
@@ -90,5 +90,5 @@ class DocumentRetriever:
 if __name__ == "__main__":
     retriever = DocumentRetriever()
     query = "For META what is the expected range of total revenue in second quarter 2026 in billions?"
-    results = retriever.retrieve(query=query, top_k=3)
+    results = retriever.retrieve(query=query, top_k=5)
     retriever.print_results(results)
